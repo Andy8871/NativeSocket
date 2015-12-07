@@ -6,6 +6,8 @@
  */
 #include <jni.h>
 #include <sys/socket.h>
+#include <sys/endian.h>
+#include <arpa/inet.h>
 #include "LogCat.h"
 #ifndef NULL
 #define NULL 0
@@ -65,11 +67,27 @@ jboolean JNICALL Connect
   (JNIEnv * env, jobject obj, jstring ipAddr, jstring port)
 {
 	//LOG_DEBUG("Connect");
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+	{
+		LOG_DEBUG("Client failed to socket ...");
+		return false;
+	}
 
 	struct sockaddr_in servAddr;
-	connect(sockfd, (struct sockaddr*)&servAddr, (int)sizeof(servAddr));
-	return false;
+	memset((void*)&servAddr, 0, (int)sizeof(servAddr));
+	servAddr.sin_family = AF_INET;
+	servAddr.sin_port = htons(9527);
+	if (inet_pton(AF_INET, "127.0.0.1", (void*)&servAddr) < 0)
+	{
+		LOG_DEBUG("Client failed to parse IP Address ...");
+		return false;
+	}
+	if (connect(sockfd, (struct sockaddr*)&servAddr, (int)sizeof(servAddr)) < 0)
+	{
+		LOG_DEBUG("Client failed to connect server ...");
+		return false;
+	}
+	return true;
 }
 
 /**
@@ -81,7 +99,10 @@ jboolean JNICALL Connect
 void JNICALL Disconnect
   (JNIEnv * env, jobject obj)
 {
-
+	if (-1 != sockfd)
+	{
+		close(sockfd);
+	}
 }
 
 /**
